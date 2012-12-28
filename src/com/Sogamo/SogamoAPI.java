@@ -48,11 +48,38 @@ public class SogamoAPI {
 					.getAsString(SessionMaster.GAME_ID), values
 					.getAsString(SessionMaster.LOG_URL), values.getAsString(
 					SessionMaster.OFFLINE).equals("true"));
-			if(hasCurrentSessionExpired() == false)// Check whether session expired or not
+			if (hasCurrentSessionExpired() == false)// Check whether session
+													// expired or not
 				return;
 		} else {
 			getNewSessionIfNeeded(); // Create New Session
 		}
+	}
+
+	private boolean convertOfflineSessions() {
+		if (InternetUtil.haveNetworkConnection(context)) // Check whether
+		// Internet
+		// available or not
+		{
+			new Thread(new Runnable() {
+
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+					String url = SogamoConstant.AUTHENTICATION_SERVER_URL
+							+ "?apiKey=" + _apiKey;
+					if (_playerId != null)
+						url += "&playerId=" + _playerId; // Coding is Left
+					String res = InternetUtil.getServer_Data(url);
+					if (res.startsWith("error"))
+						Log.d(TAG, res.substring(res.indexOf(" ")));
+					else
+						parseAuthenticationResponse(res);
+				}
+			}).start();
+			return true;
+		}
+		return false;
 	}
 
 	private void getNewSessionIfNeeded() {
@@ -63,8 +90,8 @@ public class SogamoAPI {
 				return;
 		}
 		if (InternetUtil.haveNetworkConnection(context)) // Check whether
-															// Internet
-															// available or not
+		// Internet
+		// available or not
 		{
 			new Thread(new Runnable() {
 
@@ -89,48 +116,54 @@ public class SogamoAPI {
 	}
 
 	private boolean hasCurrentSessionExpired() {
-		if (_currentSession != null)
-		{
-			long difference = _currentSession.get_startDate().getTime() - new Date().getTime(); 
-			int days = (int) (difference / (1000*60*60*24));  
-			int hours = (int) ((difference - (1000*60*60*24*days)) / (1000*60*60)); 
+		if (_currentSession != null) {
+			long difference = _currentSession.get_startDate().getTime()
+					- new Date().getTime();
+			int days = (int) (difference / (1000 * 60 * 60 * 24));
+			int hours = (int) ((difference - (1000 * 60 * 60 * 24 * days)) / (1000 * 60 * 60));
 			return hours >= SogamoConstant.SESSION_EXPIRED_TIME_HOURS;
 		}
 		return false;
 	}
 
 	private void parseAuthenticationResponse(String res) {
-		try
-		{
-			if(_currentSession == null)
+		try {
+			if (_currentSession == null)
 				_currentSession = new SogamoSession();
 			JSONObject jsonObject = new JSONObject(res);
-			//{"game_id":121,"session_id":"84FA3465-7F0E-4267-A87E-D80C32E76542","lc_url":"sogamo-data-collector.herokuapp.com/","js_url":"https://s3.amazonaws.com/sogamo-js/sogamo_js.js"}
-			String _gameId = jsonObject.getString(SogamoConstant.SESSIONS_DATA_GAME_ID_KEY);
-			String _sessionId = jsonObject.getString(SogamoConstant.SESSIONS_DATA_SESSION_ID_KEY);
-			String _lcUrl = jsonObject.getString(SogamoConstant.SESSIONS_DATA_LOG_COLLECTOR_URL_KEY);
-			_currentSession = _currentSession.init(_sessionId, _currentSession.get_playerId(), _gameId, _lcUrl, false);
+			// {"game_id":121,"session_id":"84FA3465-7F0E-4267-A87E-D80C32E76542","lc_url":"sogamo-data-collector.herokuapp.com/","js_url":"https://s3.amazonaws.com/sogamo-js/sogamo_js.js"}
+			String _gameId = jsonObject
+					.getString(SogamoConstant.SESSIONS_DATA_GAME_ID_KEY);
+			String _sessionId = jsonObject
+					.getString(SogamoConstant.SESSIONS_DATA_SESSION_ID_KEY);
+			String _lcUrl = jsonObject
+					.getString(SogamoConstant.SESSIONS_DATA_LOG_COLLECTOR_URL_KEY);
+			_currentSession = _currentSession.init(_sessionId, _currentSession
+					.get_playerId(), _gameId, _lcUrl, false);
 			saveCurrentSesstion();
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			// TODO: handle exception
 			Log.d(TAG, "Parse Authentication " + e.toString());
 		}
 	}
-	
-	private void saveCurrentSesstion()
-	{
+
+	private void saveCurrentSesstion() {
 		ContentValues values = new ContentValues();
 		values.put(SessionMaster.GAME_ID, _currentSession.get_gameId());
-		values.put(SessionMaster.LOG_URL, _currentSession.get_logCallectorUrl());
-		values.put(SessionMaster.OFFLINE, _currentSession.is_isOfflineSession());
+		values
+				.put(SessionMaster.LOG_URL, _currentSession
+						.get_logCallectorUrl());
+		values
+				.put(SessionMaster.OFFLINE, _currentSession
+						.is_isOfflineSession());
 		values.put(SessionMaster.PLAYER_ID, _currentSession.get_playerId());
 		values.put(SessionMaster.SESSION_ID, _currentSession.get_sessionId());
-		values.put(SessionMaster.STARTDATE, _currentSession.get_startDate() + "");
-		
+		values.put(SessionMaster.STARTDATE, _currentSession.get_startDate()
+				+ "");
+
 		Database database = new Database(context);
 		database.createTable(SessionMaster.CREATE_TABLE);
-		if(database.count("Select * from " + SessionMaster.TABLE_NAME) == 0)
+		if (database.count("Select * from " + SessionMaster.TABLE_NAME) == 0)
 			database.insert(values, SessionMaster.TABLE_NAME);
 		else
 			database.update(values, SessionMaster.TABLE_NAME, null);
