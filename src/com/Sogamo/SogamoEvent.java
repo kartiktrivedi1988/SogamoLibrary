@@ -15,7 +15,7 @@ public class SogamoEvent {
 	}
 	
 	//Constructor
-	public SogamoEvent init(String name, String index, HashMap<String, Object> params ) {
+	public static SogamoEvent init(String name, String index, HashMap<String, Object> params ) {
 		return new SogamoEvent(name, index, params);
 	}
 }
